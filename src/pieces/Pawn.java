@@ -4,7 +4,7 @@ import main.Board;
 
 import java.awt.image.BufferedImage;
 
-public class Pawn extends Piece{
+public class Pawn extends Piece {
     public Pawn(Board board, int col, int row, boolean isWhite) {
         super(board);
         this.col = col;
@@ -19,7 +19,7 @@ public class Pawn extends Piece{
 
     }
 
-    public boolean isValidMovement(int col,int row) {
+    public boolean isValidMovement(int col, int row) {
 
         int colorIndex = isWhite ? 1 : -1;
 
@@ -39,8 +39,15 @@ public class Pawn extends Piece{
         if (col == this.col + 1 && row == this.row - colorIndex && board.getPiece(col, row) != null)
             return true;
 
+        //en passant left
+        if (board.getTileNum(col, row) == board.enPassantTile && col == this.col - 1 && row == this.row - colorIndex && board.getPiece(col, row + colorIndex) != null)
+            return true;
+
+        //en passant right
+        if (board.getTileNum(col, row) == board.enPassantTile && col == this.col + 1 && row == this.row - colorIndex && board.getPiece(col, row + colorIndex) != null)
+            return true;
+
+
         return false;
-
     }
-
 }
