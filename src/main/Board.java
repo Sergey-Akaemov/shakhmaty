@@ -9,6 +9,10 @@ import java.util.stream.Collectors;
 
 public class Board extends JPanel {
 
+    public String fenStartingPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    public final String fenTest = "r3k2r/8/8/8/2Pp4/8/8/R3K2R b KQkq c3 0 1";
+    public final String myFEN = "4q3/1r3k2/8/8/3K4/5N1R/1N6/8 w - - 0 1";;
+
     public int tileSize = 85;
 
     int cols = 8;
@@ -33,7 +37,7 @@ public class Board extends JPanel {
         this.addMouseListener(input);
         this.addMouseMotionListener(input);
 
-        addPieces();
+        loadPositionFromFEN(fenStartingPosition);
     }
 
 
@@ -53,8 +57,11 @@ public class Board extends JPanel {
 
         if (move.piece.name.equals("Pawn")) {
             movePawn(move);
-        } else if (move.piece.name.equals("King")) {
-            moveKing((move));
+        } else {
+            enPassantTile = -1;
+        }
+            if (move.piece.name.equals("King")) {
+                moveKing((move));
         }
 
             move.piece.col = move.newCol;
@@ -159,44 +166,77 @@ public class Board extends JPanel {
         }
         return null;
     }
+// "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    public void loadPositionFromFEN(String fenString) {
+        pieceList.clear();
+        String[] parts = fenString.split(" ");
 
-    public void addPieces() {
-        pieceList.add(new Rook(this, 0, 0, false));
-        pieceList.add(new Knight(this, 1, 0, false));
-        pieceList.add(new Bishop(this, 2, 0, false));
-        pieceList.add(new Queen(this, 3, 0, false));
-        pieceList.add(new King(this, 4, 0, false));
-        pieceList.add(new Bishop(this, 5, 0, false));
-        pieceList.add(new Knight(this, 6, 0, false));
-        pieceList.add(new Rook(this, 7, 0, false));
+        // set up pieces
+        String position = parts[0];
+        int row = 0;
+        int col = 0;
+        for (int i = 0; i < position.length(); i++) {
+            char ch = position.charAt(i);
+            if(ch == '/') {
+                row ++;
+                col = 0;
+            } else if (Character.isDigit(ch)) {
+                col += Character.getNumericValue(ch);
+            } else {
+                boolean isWhite = Character.isUpperCase(ch);
+                char pieceChar = Character.toLowerCase(ch);
 
-        pieceList.add(new Pawn(this, 0, 1, false));
-        pieceList.add(new Pawn(this, 1, 1, false));
-        pieceList.add(new Pawn(this, 2, 1, false));
-        pieceList.add(new Pawn(this, 3, 1, false));
-        pieceList.add(new Pawn(this, 4, 1, false));
-        pieceList.add(new Pawn(this, 5, 1, false));
-        pieceList.add(new Pawn(this, 6, 1, false));
-        pieceList.add(new Pawn(this, 7, 1, false));
+                switch (pieceChar) {
+                    case 'r':
+                        pieceList.add(new Rook(this, col, row, isWhite));
+                        break;
+                    case 'n':
+                        pieceList.add(new Knight(this, col, row, isWhite));
+                        break;
+                    case 'b':
+                        pieceList.add(new Bishop(this, col, row, isWhite));
+                        break;
+                    case 'q':
+                        pieceList.add(new Queen(this, col, row, isWhite));
+                        break;
+                    case 'k':
+                        pieceList.add(new King(this, col, row, isWhite));
+                        break;
+                    case 'p':
+                        pieceList.add(new Pawn(this, col, row, isWhite));
+                        break;
+                }
+                col++;
+            }
+        }
 
-        pieceList.add(new Rook(this, 0, 7, true));
-        pieceList.add(new Knight(this, 1, 7, true));
-        pieceList.add(new Bishop(this, 2, 7, true));
-        pieceList.add(new Queen(this, 3, 7, true));
-        pieceList.add(new King(this, 4, 7, true));
-        pieceList.add(new Bishop(this, 5, 7, true));
-        pieceList.add(new Knight(this, 6, 7, true));
-        pieceList.add(new Rook(this, 7, 7, true));
+        // color to move
+        isWhiteToMove = parts[1].equals("w");
 
-        pieceList.add(new Pawn(this, 0, 6, true));
-        pieceList.add(new Pawn(this, 1, 6, true));
-        pieceList.add(new Pawn(this, 2, 6, true));
-        pieceList.add(new Pawn(this, 3, 6, true));
-        pieceList.add(new Pawn(this, 4, 6, true));
-        pieceList.add(new Pawn(this, 5, 6, true));
-        pieceList.add(new Pawn(this, 6, 6, true));
-        pieceList.add(new Pawn(this, 7, 6, true));
+        // castling
+        Piece bqr = getPiece(0, 0);
+        if (bqr instanceof Rook) {
+            bqr.isFirstMove = parts[2].contains("q");
+        }
+        Piece bkr = getPiece(7, 0);
+        if (bkr instanceof Rook) {
+            bkr.isFirstMove = parts[2].contains("k");
+        }
+        Piece wqr = getPiece(0, 7);
+        if (wqr instanceof Rook) {
+            wqr.isFirstMove = parts[2].contains("Q");
+        }
+        Piece wkr = getPiece(7, 7);
+        if (wkr instanceof Rook) {
+            wkr.isFirstMove = parts[2].contains("K");
+        }
 
+        // en passant square
+        if (parts[3].equals("-")) {
+            enPassantTile = -1;
+        } else {
+            enPassantTile = (7 - (parts[3].charAt(1) - '1')) * 8 + (parts[3].charAt(0) - 'a');
+        }
     }
 
     private void updateGameState() {
