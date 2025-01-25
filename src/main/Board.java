@@ -5,6 +5,7 @@ import pieces.*;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 public class Board extends JPanel {
 
@@ -19,7 +20,12 @@ public class Board extends JPanel {
 
     Input input = new Input(this);
 
+    public CheckScanner checkScanner = new CheckScanner(this);
+
     public int enPassantTile = -1;
+
+    private boolean isWhiteToMove = true;
+    private boolean isGameOver = false;
 
     public Board() {
         this.setPreferredSize(new Dimension(cols * tileSize,rows * tileSize));
@@ -47,7 +53,10 @@ public class Board extends JPanel {
 
         if (move.piece.name.equals("Pawn")) {
             movePawn(move);
-        } else {
+        } else if (move.piece.name.equals("King")) {
+            moveKing((move));
+        }
+
             move.piece.col = move.newCol;
             move.piece.row = move.newRow;
             move.piece.xPos = move.newCol * tileSize;
@@ -56,7 +65,26 @@ public class Board extends JPanel {
             move.piece.isFirstMove = false;
 
             capture(move.capture);
+
+            isWhiteToMove = !isWhiteToMove;
+
+            updateGameState();
+    }
+
+    private void moveKing(Move move) {
+
+        if (Math.abs(move.piece.col - move.newCol) == 2) {
+            Piece rook;
+            if (move.piece.col < move.newCol) {
+                rook = getPiece(7, move.piece.row);
+                rook.col = 5;
+            } else {
+                rook = getPiece(0, move.piece.row);
+                rook.col = 3;
+            }
+            rook.xPos = rook.col * tileSize;
         }
+
     }
 
     private void movePawn(Move move) {
@@ -79,15 +107,6 @@ public class Board extends JPanel {
             promotePawn(move);
         }
 
-        move.piece.col = move.newCol;
-        move.piece.row = move.newRow;
-        move.piece.xPos = move.newCol * tileSize;
-        move.piece.yPos = move.newRow * tileSize;
-
-        move.piece.isFirstMove = false;
-
-        capture(move.capture);
-
     }
 
     private void promotePawn(Move move) {
@@ -101,6 +120,10 @@ public class Board extends JPanel {
 
     public boolean isValidMove(Move move) {
 
+        if (isGameOver) {
+            return false;
+        }
+
         if (sameTeam(move.piece, move.capture)) {
             return false;
         }
@@ -108,6 +131,9 @@ public class Board extends JPanel {
             return false;
         }
         if (move.piece.MoveCollidesWithPiece(move.newCol, move.newRow)) {
+            return false;
+        }
+        if (checkScanner.isKingChecked(move)) {
             return false;
         }
 
@@ -123,6 +149,15 @@ public class Board extends JPanel {
 
     public int getTileNum(int col, int row) {
         return row * rows + col;
+    }
+
+    Piece findKing(boolean isWhite) {
+        for (Piece piece : pieceList) {
+            if (isWhite == piece.isWhite && piece.name.equals("King")) {
+                return piece;
+            }
+        }
+        return null;
     }
 
     public void addPieces() {
@@ -162,6 +197,32 @@ public class Board extends JPanel {
         pieceList.add(new Pawn(this, 6, 6, true));
         pieceList.add(new Pawn(this, 7, 6, true));
 
+    }
+
+    private void updateGameState() {
+        Piece king = findKing(isWhiteToMove);
+        if (checkScanner.isGameOver(king)) {
+            if (checkScanner.isKingChecked(new Move(this, king, king.col, king.row))) {
+                System.out.println(isWhiteToMove ? "Black Wins!" : "White Wins!");
+            } else {
+                System.out.println("Stalemate!");
+            }
+            isGameOver = true;
+        } else if (insufficientMaterial(true) && insufficientMaterial(false)) {
+            System.out.println("Insufficient Material!");
+            isGameOver = true;
+        }
+    }
+
+    private boolean insufficientMaterial(boolean isWhite) {
+        ArrayList<String> names = pieceList.stream()
+                .filter(p -> p.isWhite == isWhite)
+                .map(p -> p.name)
+                .collect(Collectors.toCollection(ArrayList::new));
+        if (names.contains("Queen") ||  names.contains("Rook") || names.contains("Pawn")) {
+            return false;
+        }
+        return names.size() < 3;
     }
 
     public void paintComponent(Graphics g) {
